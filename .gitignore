@@ -1,0 +1,9 @@
+
+/.vs/*
+/YaSheduler/bin
+/YaSheduler/obj
+/packages/
+*.ico
+*.txt
+*.exe
+*.json
