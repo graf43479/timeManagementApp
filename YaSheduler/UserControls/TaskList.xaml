@@ -17,7 +17,7 @@
         </Grid.RowDefinitions>
         <DockPanel Grid.Column="0" Grid.RowSpan="2">
         <Label DockPanel.Dock="Top" x:Name="lblDescription" Content="Content" Margin="10,0,0,0"></Label>
-        <ListBox DockPanel.Dock="Bottom" x:Name="lstBox" Margin="10,0,10,10" SelectionChanged="lstBox_SelectionChanged"></ListBox>
+            <ListBox DockPanel.Dock="Bottom"  x:Name="lstBox" Margin="10,0,10,10" PreviewMouseLeftButtonDown="lstBox_PreviewMouseLeftButtonDown"  SelectionChanged="lstBox_SelectionChanged" Drop="lstBox_Drop" AllowDrop="True"></ListBox>
         </DockPanel>
         <!--<StackPanel Grid.Row="1">
             <Label Grid.Row="1" Margin="10,0,10,0">Description</Label>
@@ -25,8 +25,7 @@
         </StackPanel>-->
         <StackPanel Grid.Column="1" Grid.RowSpan="2" VerticalAlignment="Center">
             <Button x:Name="btnUp" Grid.Column="1" Grid.Row="0" Content="Up" Margin="10" Click="btnUp_Click"></Button>
-            <Button x:Name="btnDown" Grid.Column="1" Grid.Row="0" Content="Down" Margin="10" Click="btnDown_Click"></Button>
-            <Button x:Name="btnAdd" Grid.Column="1" Grid.Row="0" Content="Add" Margin="10" Click="btnAdd_Click" ></Button>
+            <Button x:Name="btnDown" Grid.Column="1" Grid.Row="0" Content="Down" Margin="10" Click="btnDown_Click"></Button>            
             <Button x:Name="btnRemove" Grid.Column="1" Grid.Row="0" Content="Remove" Margin="10" Click="btnRemove_Click" ></Button>
             <Button x:Name="btnUpdate" Grid.Column="1" Grid.Row="0" Content="Update" Margin="10" Click="btnUpdate_Click" ></Button>
             <!--<TextBlock x:Name="textBlockCur" Text="{Binding Path=Description, TargetNullValue=[No data]}"></TextBlock>-->

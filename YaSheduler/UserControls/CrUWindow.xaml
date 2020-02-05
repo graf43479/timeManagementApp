@@ -1,0 +1,19 @@
+﻿<Window x:Class="YaSheduler.UserControls.CrUWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:YaSheduler.UserControls"
+        mc:Ignorable="d"
+        Title="CrUWindow" Height="168" Width="300" Closed="Window_Closed">
+    <Grid>
+        <StackPanel>
+            <Label>Задача:</Label>
+            <TextBox x:Name="txtBoxDescription" MinHeight="50" Margin="5"></TextBox>
+            <WrapPanel Height="Auto" HorizontalAlignment="Right" >                
+                <Button Height="30" Width="100" Margin="5" Content="Применить" Click="Button_Click_Ok"></Button>
+                <Button Height="30" Width="100" Margin="5" Content="Отмена" Click="Button_Click_Close"></Button>
+            </WrapPanel>
+        </StackPanel>
+    </Grid>
+</Window>

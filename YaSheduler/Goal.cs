@@ -9,6 +9,11 @@ namespace YaSheduler
         public int GoalID { get; set; }
         public GoalTypes GoalType  { get; set; }
         public string Description { get; set; }
+
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
     public enum GoalTypes

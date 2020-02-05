@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,14 +21,26 @@ namespace YaSheduler.UserControls
     /// <summary>
     /// Логика взаимодействия для TaskList.xaml
     /// </summary>
-    public partial class TaskList : UserControl, INotifyPropertyChanged
+    public partial class TaskList : INotifyPropertyChanged
     {
-        //public static DependencyObject ItemsSourceProperty;
+        public static readonly DependencyProperty CurrentItemProperty;
+
+        public CrUWindow editWindow;
+        static ListBox dragSource = null;
+
+        static TaskList()
+        {
+            CurrentItemProperty = DependencyProperty.Register("CurrentItem", typeof(string), typeof(TaskList));            
+        }
+        public string CurrentItem
+        {
+            get { return (string)GetValue(CurrentItemProperty); }
+            set { SetValue(CurrentItemProperty, value); }
+        }
+
         ObservableCollection<string> tasks;        
-
-        private string currentItem;
-
-        private string newItem;
+      
+        private GoalTypes goalType;
 
         public ObservableCollection<string> Tasks
         {
@@ -35,41 +49,17 @@ namespace YaSheduler.UserControls
                 this.tasks = value;
                 OnPropertyChanged("Tasks");
                 }
-        }
+        }       
 
-        public string CurrentItem
+        public GoalTypes GoalType
         {
-            get { return currentItem; }
+            get { return goalType; }
             set
             {
-                this.currentItem = value;
-                OnPropertyChanged("CurrentItem");
+                goalType = value;               
+                OnPropertyChanged("GoalType");
             }
-        }
-
-        public string NewItem
-        {
-            get { return newItem; }
-            set
-            {
-                this.newItem = value;
-                OnPropertyChanged("NewItem");
-            }
-        }
-
-        // Using a DependencyProperty as the backing store for Tasks.  This enables animation, styling, binding, etc...
-        //public static readonly DependencyProperty TasksProperty =
-        //    DependencyProperty.Register("Tasks", typeof(ObservableCollection<string>), typeof(TaskList), new PropertyMetadata(
-        //        new ObservableCollection<string>()));
-
-        //public static readonly DependencyProperty CurrentItemProperty =
-        //    DependencyProperty.Register("CurrentItem", typeof(string), typeof(string), new PropertyMetadata(
-        //        string.Empty
-        //        ));
-
-        //public static readonly DependencyProperty NewItemProperty =
-        //    DependencyProperty.Register("NewItem", typeof(string), typeof(string), new PropertyMetadata(
-        //        string.Empty));
+        }      
 
         internal void OnPropertyChanged(string prop="")
         {
@@ -79,22 +69,14 @@ namespace YaSheduler.UserControls
             }
         }
 
-
         public event PropertyChangedEventHandler PropertyChanged;
-
-        static TaskList()
-        {            
-        }
+              
         
         public TaskList()
         {
             InitializeComponent();
-            tasks = new ObservableCollection<string>() {
-                "1",
-                "2",
-                "3"
-            };
-            lstBox.ItemsSource = tasks;
+            tasks = new ObservableCollection<string>();
+            lstBox.ItemsSource = Tasks; 
         }
         
         private void btnUp_Click(object sender, RoutedEventArgs e)
@@ -133,19 +115,7 @@ namespace YaSheduler.UserControls
             {
                 MessageBox.Show(ex.Message);
             }
-        }
-
-        private void btnAdd_Click(object sender, RoutedEventArgs e)
-        {            
-            if (!tasks.Any(x => x == currentItem))
-            {
-                tasks.Add(currentItem);
-            }
-            else
-            {
-                MessageBox.Show("Запись уже добавлена!");
-            }
-        }
+        }              
 
         private void btnRemove_Click(object sender, RoutedEventArgs e)
         {
@@ -154,23 +124,145 @@ namespace YaSheduler.UserControls
                 var item = lstBox.Items[lstBox.SelectedIndex].ToString();
                 int selected = lstBox.SelectedIndex;
                 lstBox.SelectedIndex = selected==0 ? 1 : selected-1;
-                tasks.Remove(item);
+                tasks.Remove(tasks.First(x => x == item));               
             }
         }
 
-        public string GetItem()
-        {
-            int selected = lstBox.SelectedIndex;
-            var itemToMoveDoewn = lstBox.Items[selected];
-            return tasks[selected]; 
-        }
-
         private void lstBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {            
+        {  
+            
         }
 
         private void btnUpdate_Click(object sender, RoutedEventArgs e)
         {
+            if (editWindow != null)
+            {
+                editWindow.Close();
+            }
+
+            if (lstBox.SelectedIndex != -1)
+            {
+                editWindow = new CrUWindow("Обновить", lstBox.Items[lstBox.SelectedIndex].ToString());                
+            }
+            else
+            {
+                editWindow = new CrUWindow("Обновить");
+            }
+            
+            editWindow.Closing += UpdateList;
+            editWindow.Owner = (Application.Current as App).MainWindow;
+            editWindow.Show();
+        }
+
+        private void lstBox_Drop(object sender, DragEventArgs e)
+        {
+            DragDropData data = e.Data.GetData(typeof(DragDropData)) as DragDropData;
+            if (!tasks.Any(x => x == data.ActualData.ToString()))
+            { 
+                Tasks.Add(data.ToString());
+            }
+            var a =  data.DragStartSource;
+            if (a != tasks)
+            { 
+                a.Remove(data.ToString());
+            }            
+        }
+
+        private void lstBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                ListBox parent = (ListBox)sender;
+                dragSource = parent;
+                object data = GetDataFromListBox(dragSource, e.GetPosition(parent));            
+                if (data != null)
+                {
+                    var dragDropData = new DragDropData
+                    {
+                        ActualData = data,
+                        DragStartSource = tasks
+                    };
+
+                    DragDrop.DoDragDrop(parent, dragDropData, DragDropEffects.Move);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+
+        private static object GetDataFromListBox(ListBox source, Point point)
+        {
+            try
+            {
+                UIElement element = source.InputHitTest(point) as UIElement;
+                if (element != null)
+                {
+                    object data = DependencyProperty.UnsetValue;
+                    while (data == DependencyProperty.UnsetValue)
+                    {
+                        data = source.ItemContainerGenerator.ItemFromContainer(element);
+
+                        if (data == DependencyProperty.UnsetValue)
+                        {
+                            element = VisualTreeHelper.GetParent(element) as UIElement;
+                        }
+
+                        if (element == source)
+                        {
+                            return null;
+                        }
+                    }
+
+                    if (data != DependencyProperty.UnsetValue)
+                    {
+                        return data;
+                    }
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                return null;
+            }
+        }
+
+        public void UpdateList(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            string newTxt = editWindow.txtBoxDescription.Text;
+            if (!String.IsNullOrEmpty(newTxt))
+            {
+                if (!tasks.Any(x => x == newTxt))
+                {
+                    if (!String.IsNullOrEmpty(editWindow.BaseDescription))
+                    {
+                        Tasks.Remove(editWindow.BaseDescription);
+                        Tasks.Add(newTxt);
+                    }
+                    else
+                    {
+                        Tasks.Add(newTxt);
+                    }
+                }
+                else
+                {
+                    if(newTxt!=editWindow.BaseDescription)
+                    MessageBox.Show("Запись уже добавлена!");
+                }
+            }
+        }
+    }
+
+    public class DragDropData
+    {
+        public object ActualData { get; set; }
+        public ObservableCollection<string> DragStartSource { get; set; }
+
+        public override string ToString()
+        {
+            return ActualData.ToString();
         }
     }
 }
