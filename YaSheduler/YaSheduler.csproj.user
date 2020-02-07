@@ -10,12 +10,18 @@
     <Compile Update="UserControls\TaskList.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="UserControls\TokenWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Page Update="MainWindow.xaml">
       <SubType>Designer</SubType>
     </Page>
     <Page Update="UserControls\TaskList.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="UserControls\TokenWindow.xaml">
       <SubType>Designer</SubType>
     </Page>
   </ItemGroup>

@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -12,6 +16,11 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using YandexDisk.Client;
+using YandexDisk.Client.Clients;
+using YandexDisk.Client.Http;
+using YandexDisk.Client.Protocol;
+using YaSheduler.UserControls;
 
 namespace YaSheduler
 {
@@ -20,17 +29,22 @@ namespace YaSheduler
     /// </summary>
     public partial class MainWindow : Window
     {
+        string oauthToken = "";
+        TokenWindow tokenWindow;
         public MainWindow()
         {
             InitializeComponent();
+
+
+            
 
             //Binding binding = new Binding();
             //binding.ElementName = "txtBoxDescription";
             //binding.Path = new PropertyPath("Text");
             //txtBoxDescription.SetBinding(some1.CurrentItem, binding);
             //some1.SetBinding(txtBoxDescription.Text, binding);
-            
-                
+
+
             List<Goal> goals = new List<Goal>()
             {
                 new Goal{ GoalID = 1, Description = "Some description1", GoalType = GoalTypes.NotImportantNotUrgent},
@@ -79,7 +93,93 @@ namespace YaSheduler
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
-            }
+            }           
         }
+
+        private void mainWindow_Initialized(object sender, EventArgs e)
+        {
+        
+
+
+            if (File.Exists("token.txt"))
+            {
+             
+            }
+            else
+            {
+                string url = "https://oauth.yandex.ru/authorize?response_type=token&client_id=" + "secretID";
+                try
+                {
+                    Process.Start(url);
+                }
+                catch (Win32Exception)
+                {
+                    var startInfo = new ProcessStartInfo(@"C:\Program Files\Internet Explorer\iexplore.exe", url);
+                    Process.Start(startInfo);
+                }
+                finally
+                {
+
+                }
+                    tokenWindow = new TokenWindow();
+                    //tokenWindow.Owner = (Application.Current as App).MainWindow;
+                    tokenWindow.Closing += GetToken;
+                    tokenWindow.Show();
+            }
+
+        }
+
+        private void GetToken(object sender, CancelEventArgs e)
+        {
+            oauthToken = tokenWindow.Token;
+            //Task t = Task.Run(() => UploadSample());
+            //t.Wait();
+            //string newTxt = editWindow.txtBoxDescription.Text;
+            Task.Run(() => UploadSample());
+        }
+
+        async Task UploadSample()
+        {
+            //You should have oauth token from Yandex Passport.
+            //See https://tech.yandex.ru/oauth/            
+
+            // Create a client instance
+            IDiskApi diskApi = new DiskHttpApi(oauthToken);
+
+            //Upload file from local
+            await diskApi.Files.UploadFileAsync(path: "/foo/myfile.txt",
+                                                overwrite: false,
+                                                localFile: @"C:\[WORK]\myfile.txt",
+                                                cancellationToken: CancellationToken.None);
+        }
+
+
+        async Task DownloadAllFilesInFolder(IDiskApi diskApi)
+        {
+            //Getting information about folder /foo and all files in it
+            Resource fooResourceDescription = await diskApi.MetaInfo.GetInfoAsync(new ResourceRequest
+            {
+                Path = "/foo", //Folder on Yandex Disk
+            }, CancellationToken.None);
+
+            //Getting all files from response
+            IEnumerable<Resource> allFilesInFolder =
+                fooResourceDescription.Embedded.Items.Where(item => item.Type == ResourceType.File);
+
+            //Path to local folder for downloading files
+            string localFolder = @"C:\foo";
+
+            //Run all downloadings in parallel. DiskApi is thread safe.
+            IEnumerable<Task> downloadingTasks =
+                allFilesInFolder.Select(file =>
+                  diskApi.Files.DownloadFileAsync(path: file.Path,
+                                                  System.IO.Path.Combine(localFolder, file.Name)));
+
+            //Wait all done
+            await Task.WhenAll(downloadingTasks);
+        }
+
+
+
     }
 }

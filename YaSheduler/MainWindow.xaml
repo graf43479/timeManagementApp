@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:YaSheduler"
         xmlns:controls="clr-namespace:YaSheduler.UserControls"
         mc:Ignorable="d"
-        Title="MainWindow" Height="550" Width="800" MinHeight="550">
+        Title="MainWindow" Height="550" Width="800" MinHeight="550" Initialized="mainWindow_Initialized">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
@@ -20,6 +20,6 @@
         <controls:TaskList x:FieldModifier="public" x:Name="some1" Grid.Column="0" Grid.Row="0" Visibility="Visible" Margin="0" />
         <controls:TaskList x:FieldModifier="public" x:Name="some2" Grid.Column="1" Grid.Row="0" Visibility="Visible" Margin="0" />
         <controls:TaskList x:FieldModifier="public" x:Name="some3" Grid.Column="0" Grid.Row="1" Visibility="Visible" Margin="0" />
-        <controls:TaskList x:FieldModifier="public" x:Name="some4" Grid.Column="1" Grid.Row="1" Visibility="Visible" Margin="0" />        
+        <controls:TaskList x:FieldModifier="public" x:Name="some4" Grid.Column="1" Grid.Row="1" Visibility="Visible" Margin="0" />
     </Grid>
 </Window>
