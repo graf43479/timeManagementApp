@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -31,12 +33,14 @@ namespace YaSheduler
     {
         string oauthToken = "";
         TokenWindow tokenWindow;
+        private readonly string jsonPath;
+
         public MainWindow()
         {
+            jsonPath = Directory.GetCurrentDirectory() + "/JsonData";
             InitializeComponent();
 
 
-            
 
             //Binding binding = new Binding();
             //binding.ElementName = "txtBoxDescription";
@@ -96,18 +100,46 @@ namespace YaSheduler
             }           
         }
 
-        private void mainWindow_Initialized(object sender, EventArgs e)
+
+        private JsonGoalList jsonGoal;
+
+
+        private JsonGoalList GetJson(string fullName)
         {
-        
-
-
-            if (File.Exists("token.txt"))
+            if (File.Exists(fullName))
             {
-             
+                using (StreamReader reader = new StreamReader(fullName))
+                {
+                    string json = reader.ReadToEnd();
+                    JsonSerializerSettings serSettings = new JsonSerializerSettings();
+                    serSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                    JsonGoalList tmpGoalList = JsonConvert.DeserializeObject<JsonGoalList>(json, serSettings);
+                    return tmpGoalList;
+                }
+                //byte[] bytes = Encoding.Default.GetBytes(JsonConvert.SerializeObject(array));
+                //await File.WriteAllBytesAsync(fullName, bytes);    
             }
-            else
+            return null;
+        }
+
+        private JsonGoalList GetLocal()
+        {
+            string fullName = jsonPath + "/" + "Data.json";
+            //если конфиг существует, то сравнить дату изменения с серверной версией
+            if (File.Exists(fullName))
             {
-                string url = "https://oauth.yandex.ru/authorize?response_type=token&client_id=" + "secretID";
+                return GetJson(fullName);
+                //byte[] bytes = Encoding.Default.GetBytes(JsonConvert.SerializeObject(array));
+                //await File.WriteAllBytesAsync(fullName, bytes);    
+            }
+            return null;
+        }
+        private JsonGoalList GetFromYa(string token = "")
+        {
+            string fullName = jsonPath + "/" + "Data2.json";
+            if (!String.IsNullOrEmpty(token))
+            {
+                string url = "https://oauth.yandex.ru/authorize?response_type=token&client_id=" + "secret";
                 try
                 {
                     Process.Start(url);
@@ -121,20 +153,76 @@ namespace YaSheduler
                 {
 
                 }
-                    tokenWindow = new TokenWindow();
-                    //tokenWindow.Owner = (Application.Current as App).MainWindow;
-                    tokenWindow.Closing += GetToken;
-                    tokenWindow.Show();
+                tokenWindow = new TokenWindow();
+                //tokenWindow.Owner = (Application.Current as App).MainWindow;
+                tokenWindow.Closing += GetToken;
+                tokenWindow.Show();
             }
+            else
+            {
+                Task t = Task.Run(() => DownloadJson());
+                if (t.IsCompletedSuccessfully)
+                {
+                    MessageBox.Show("Succes");
+                    return GetJson(fullName);
+                }
+                else
+                {
+                    MessageBox.Show("NotExist");
+                    
+                }
+            }
+            return null;
 
+        }
+        private void InitializeJsomFile()
+        {
+            if (!Directory.Exists(jsonPath))
+            {                
+                Directory.CreateDirectory(jsonPath);               
+            }
+            
+
+            //4 ситуации
+            //1. Нет данных о data.json нигде     
+            //2. Данные есть только на сервере
+            //3. Данные есть только в локальном каталоге (что врядли, либо если нет соединения)
+            //4. Данные и там, и там (надо сравнивать) 
+
+            JsonGoalList jsonLocal = GetLocal();
+            string key = "";
+            if (jsonLocal != null)
+            {
+                key = jsonLocal.Key;
+            }
+            JsonGoalList jsonYa = GetFromYa(key);
+
+            if (jsonLocal == null && jsonYa == null)
+            {
+                MessageBox.Show("No data");
+            }
+            else if (jsonLocal != null && jsonYa == null)
+            {
+                MessageBox.Show("Only local");
+            }
+            else if (jsonLocal == null && jsonYa != null)
+            {
+                MessageBox.Show("Only Ya");
+            }
+            else 
+            {
+                MessageBox.Show("Both availble");
+            }
+        }
+
+        private void mainWindow_Initialized(object sender, EventArgs e)
+        {
+            InitializeJsomFile();
         }
 
         private void GetToken(object sender, CancelEventArgs e)
         {
             oauthToken = tokenWindow.Token;
-            //Task t = Task.Run(() => UploadSample());
-            //t.Wait();
-            //string newTxt = editWindow.txtBoxDescription.Text;
             Task.Run(() => UploadSample());
         }
 
@@ -153,31 +241,13 @@ namespace YaSheduler
                                                 cancellationToken: CancellationToken.None);
         }
 
-
-        async Task DownloadAllFilesInFolder(IDiskApi diskApi)
+        async Task DownloadJson()
         {
-            //Getting information about folder /foo and all files in it
-            Resource fooResourceDescription = await diskApi.MetaInfo.GetInfoAsync(new ResourceRequest
-            {
-                Path = "/foo", //Folder on Yandex Disk
-            }, CancellationToken.None);
-
-            //Getting all files from response
-            IEnumerable<Resource> allFilesInFolder =
-                fooResourceDescription.Embedded.Items.Where(item => item.Type == ResourceType.File);
-
-            //Path to local folder for downloading files
-            string localFolder = @"C:\foo";
-
-            //Run all downloadings in parallel. DiskApi is thread safe.
-            IEnumerable<Task> downloadingTasks =
-                allFilesInFolder.Select(file =>
-                  diskApi.Files.DownloadFileAsync(path: file.Path,
-                                                  System.IO.Path.Combine(localFolder, file.Name)));
-
-            //Wait all done
-            await Task.WhenAll(downloadingTasks);
-        }
+            IDiskApi diskApi = new DiskHttpApi(oauthToken);
+            //Upload file from local
+            await diskApi.Files.DownloadFileAsync(path: "foo/data.json", localFile: jsonPath + "/" + "DataApi.json", cancellationToken: CancellationToken.None);           
+        }       
+        
 
 
 
