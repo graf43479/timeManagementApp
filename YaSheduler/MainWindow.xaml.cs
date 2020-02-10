@@ -34,10 +34,13 @@ namespace YaSheduler
         string oauthToken = "";
         TokenWindow tokenWindow;
         private readonly string jsonPath;
+        private readonly string jsonFullName;
+        private const string secret = "";
 
         public MainWindow()
         {
             jsonPath = Directory.GetCurrentDirectory() + "/JsonData";
+            jsonFullName = jsonPath + "/" + "Data.json";
             InitializeComponent();
 
 
@@ -101,7 +104,7 @@ namespace YaSheduler
         }
 
 
-        private JsonGoalList jsonGoal;
+        private JsonGoalList jsonCurrent;
 
 
         private JsonGoalList GetJson(string fullName)
@@ -122,6 +125,26 @@ namespace YaSheduler
             return null;
         }
 
+
+        private async Task UpdateJson(JsonGoalList goalList, bool islocal, bool isWeb)
+        {
+            goalList.UpdateDate = DateTime.Now;
+            if (islocal)
+            { 
+                byte[] bytes = Encoding.Default.GetBytes(JsonConvert.SerializeObject(goalList));
+                await File.WriteAllBytesAsync(jsonFullName, bytes);            
+            }
+
+            if (isWeb)
+            {
+                IDiskApi diskApi = new DiskHttpApi(oauthToken);            
+                await diskApi.Files.UploadFileAsync(path: "/foo/Data.json",
+                                                    overwrite: false,
+                                                    localFile: jsonFullName,
+                                                    cancellationToken: CancellationToken.None);
+            }
+        }
+
         private JsonGoalList GetLocal()
         {
             string fullName = jsonPath + "/" + "Data.json";
@@ -137,9 +160,9 @@ namespace YaSheduler
         private JsonGoalList GetFromYa(string token = "")
         {
             string fullName = jsonPath + "/" + "Data2.json";
-            if (!String.IsNullOrEmpty(token))
+            if (String.IsNullOrEmpty(token))
             {
-                string url = "https://oauth.yandex.ru/authorize?response_type=token&client_id=" + "secret";
+                string url = "https://oauth.yandex.ru/authorize?response_type=token&client_id=" + secret;
                 try
                 {
                     Process.Start(url);
@@ -161,6 +184,7 @@ namespace YaSheduler
             else
             {
                 Task t = Task.Run(() => DownloadJson());
+                //t.Wait();
                 if (t.IsCompletedSuccessfully)
                 {
                     MessageBox.Show("Succes");
@@ -190,28 +214,59 @@ namespace YaSheduler
             //4. Данные и там, и там (надо сравнивать) 
 
             JsonGoalList jsonLocal = GetLocal();
-            string key = "";
+            string token = "";
             if (jsonLocal != null)
             {
-                key = jsonLocal.Key;
+                token = jsonLocal.Token;
             }
-            JsonGoalList jsonYa = GetFromYa(key);
+            JsonGoalList jsonYa = GetFromYa(token);
 
             if (jsonLocal == null && jsonYa == null)
             {
                 MessageBox.Show("No data");
+                jsonCurrent = new JsonGoalList() { Key = secret, UpdateDate = DateTime.Now };
+                Task t = Task.Run(() => UpdateJson(jsonCurrent, true, true));
+               // t.Wait();
+
+                if (!t.IsCompletedSuccessfully)
+                {
+                    MessageBox.Show("Error: " + t.Status.ToString());
+                }
             }
             else if (jsonLocal != null && jsonYa == null)
             {
                 MessageBox.Show("Only local");
+                jsonCurrent = jsonLocal;
+                Task t = Task.Run(() => UpdateJson(jsonLocal, false, true));
+                t.Wait(10000);
+                if (!t.IsCompletedSuccessfully)
+                {
+                    MessageBox.Show("Error: " + t.Status.ToString());
+                }
             }
             else if (jsonLocal == null && jsonYa != null)
             {
+                jsonCurrent = jsonYa;
                 MessageBox.Show("Only Ya");
+                Task t = Task.Run(() => UpdateJson(jsonYa, true, false));
+                if (!t.IsCompletedSuccessfully)
+                {
+                    MessageBox.Show("Error: " + t.Status.ToString());
+                }
             }
             else 
             {
                 MessageBox.Show("Both availble");
+                if (jsonYa.UpdateDate < jsonLocal.UpdateDate)
+                {
+                    Task t = Task.Run(() => UpdateJson(jsonLocal, false, true));
+                    jsonCurrent = jsonLocal;
+                }
+                else
+                {
+                    Task t = Task.Run(() => UpdateJson(jsonYa, true, false));
+                    jsonCurrent = jsonYa;
+                }
             }
         }
 
@@ -223,7 +278,9 @@ namespace YaSheduler
         private void GetToken(object sender, CancelEventArgs e)
         {
             oauthToken = tokenWindow.Token;
+            jsonCurrent.Token = oauthToken;
             Task.Run(() => UploadSample());
+            Task.Run(() => UpdateJson(jsonCurrent, true, true));
         }
 
         async Task UploadSample()
@@ -243,13 +300,21 @@ namespace YaSheduler
 
         async Task DownloadJson()
         {
-            IDiskApi diskApi = new DiskHttpApi(oauthToken);
-            //Upload file from local
-            await diskApi.Files.DownloadFileAsync(path: "foo/data.json", localFile: jsonPath + "/" + "DataApi.json", cancellationToken: CancellationToken.None);           
-        }       
-        
+            //if (!String.IsNullOrEmpty(oauthToken))
+            //{ 
+                IDiskApi diskApi = new DiskHttpApi(oauthToken);
+                //Upload file from local
+                await diskApi.Files.DownloadFileAsync(path: "foo/data.json", localFile: jsonPath + "/" + "Data.json", cancellationToken: CancellationToken.None);           
+            //}
+            //else
+            //{
+            //}
+        }
 
-
-
+        private void mainWindow_Closing(object sender, CancelEventArgs e)
+        {
+            Task task = Task.Run(() => UpdateJson(jsonCurrent, true, true));
+            
+        }
     }
 }

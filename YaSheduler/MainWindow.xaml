@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:YaSheduler"
         xmlns:controls="clr-namespace:YaSheduler.UserControls"
         mc:Ignorable="d"
-        Title="MainWindow" Height="550" Width="800" MinHeight="550" Initialized="mainWindow_Initialized">
+        Title="MainWindow" Height="550" Width="800" MinHeight="550" Initialized="mainWindow_Initialized" Closing="mainWindow_Closing">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
