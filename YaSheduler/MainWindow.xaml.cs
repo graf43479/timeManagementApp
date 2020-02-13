@@ -35,7 +35,8 @@ namespace YaSheduler
         TokenWindow tokenWindow;
         private readonly string jsonPath;
         private readonly string jsonFullName;
-        private const string secret = "212";
+        private const string secret = "c02efddce5b1465b9a1d0ed0f2790d83";
+        List<Goal> goals;
 
         public MainWindow()
         {
@@ -52,7 +53,7 @@ namespace YaSheduler
             //some1.SetBinding(txtBoxDescription.Text, binding);
 
 
-            List<Goal> goals = new List<Goal>()
+            goals = new List<Goal>()
             {
                 new Goal{ GoalID = 1, Description = "Some description1", GoalType = GoalTypes.NotImportantNotUrgent},
                 new Goal{ GoalID = 2, Description = "Some description2", GoalType = GoalTypes.NotImportantUrgent},
@@ -137,11 +138,21 @@ namespace YaSheduler
 
             if (isWeb)
             {
-                IDiskApi diskApi = new DiskHttpApi(oauthToken);            
-                await diskApi.Files.UploadFileAsync(path: "/foo/Data.json",
+                IDiskApi diskApi = new DiskHttpApi(oauthToken);
+
+                //try
+                //{
+                    await diskApi.Files.UploadFileAsync(path: "/foo/Data.json",
                                                     overwrite: false,
                                                     localFile: jsonFullName,
                                                     cancellationToken: CancellationToken.None);
+                //}
+                //catch (Exception ex)
+                //{
+                //    //MessageBox.Show(ex.InnerException.Message);
+                    
+                //}
+                 
             }
         }
 
@@ -158,7 +169,7 @@ namespace YaSheduler
             return null;
         }
         private JsonGoalList GetFromYa(string token = "")
-        {
+        {            
             string fullName = jsonPath + "/" + "Data2.json";
             if (String.IsNullOrEmpty(token))
             {
@@ -183,6 +194,7 @@ namespace YaSheduler
             }
             else
             {
+                oauthToken = token;
                 Task t = Task.Run(() => DownloadJson());
                 //t.Wait();
                 if (t.IsCompletedSuccessfully)
@@ -226,8 +238,8 @@ namespace YaSheduler
                 MessageBox.Show("No data");
                 jsonCurrent = new JsonGoalList() { Key = secret, UpdateDate = DateTime.Now };
                 Task t = Task.Run(() => UpdateJson(jsonCurrent, true, true));
-               // t.Wait();
-
+                // t.Wait();
+                //t.GetAwaiter();
                 if (!t.IsCompletedSuccessfully)
                 {
                     MessageBox.Show("Error: " + t.Status.ToString());
@@ -238,10 +250,14 @@ namespace YaSheduler
                 MessageBox.Show("Only local");
                 jsonCurrent = jsonLocal;
                 Task t = Task.Run(() => UpdateJson(jsonLocal, false, true));
-                t.Wait(10000);
+
+                //  t.Wait(10000);
+                //t.ContinueWith((o) => { MessageBox.Show(o.Exception.ToString()); });
+                //t.GetAwaiter().GetResult();
                 if (!t.IsCompletedSuccessfully)
                 {
                     MessageBox.Show("Error: " + t.Status.ToString());
+                    MessageBox.Show("Error: " + t.Exception.InnerException.ToString());
                 }
             }
             else if (jsonLocal == null && jsonYa != null)
@@ -279,24 +295,24 @@ namespace YaSheduler
         {
             oauthToken = tokenWindow.Token;
             jsonCurrent.Token = oauthToken;
-            Task.Run(() => UploadSample());
-            Task.Run(() => UpdateJson(jsonCurrent, true, true));
+           // Task.Run(() => UploadSample());
+            //Task.Run(() => UpdateJson(jsonCurrent, true, true));
         }
 
-        async Task UploadSample()
-        {
-            //You should have oauth token from Yandex Passport.
-            //See https://tech.yandex.ru/oauth/            
+        //async Task UploadSample()
+        //{
+        //    //You should have oauth token from Yandex Passport.
+        //    //See https://tech.yandex.ru/oauth/            
 
-            // Create a client instance
-            IDiskApi diskApi = new DiskHttpApi(oauthToken);
+        //    // Create a client instance
+        //    IDiskApi diskApi = new DiskHttpApi(oauthToken);
 
-            //Upload file from local
-            await diskApi.Files.UploadFileAsync(path: "/foo/myfile.txt",
-                                                overwrite: false,
-                                                localFile: @"C:\[WORK]\myfile.txt",
-                                                cancellationToken: CancellationToken.None);
-        }
+        //    //Upload file from local
+        //    await diskApi.Files.UploadFileAsync(path: "/foo/myfile.txt",
+        //                                        overwrite: false,
+        //                                        localFile: @"C:\[WORK]\myfile.txt",
+        //                                        cancellationToken: CancellationToken.None);
+        //}
 
         async Task DownloadJson()
         {
@@ -314,7 +330,14 @@ namespace YaSheduler
         private void mainWindow_Closing(object sender, CancelEventArgs e)
         {
             Task task = Task.Run(() => UpdateJson(jsonCurrent, true, true));
-            
+            //Task task = Task.Run(() => UpdateJson(new JsonGoalList
+            //{
+            //    Key = jsonCurrent.Key,
+            //    Token = oauthToken,
+            //    UpdateDate = DateTime.Now,
+            //    Goals = goals
+            //}, true, true)); ;
+
         }
     }
 }
