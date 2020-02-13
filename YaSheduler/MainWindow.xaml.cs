@@ -35,7 +35,7 @@ namespace YaSheduler
         TokenWindow tokenWindow;
         private readonly string jsonPath;
         private readonly string jsonFullName;
-        private const string secret = "";
+        private const string secret = "212";
 
         public MainWindow()
         {
